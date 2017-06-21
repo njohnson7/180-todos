@@ -129,7 +129,7 @@ COPY lists (id, name) FROM stdin;
 -- Name: lists_id_seq; Type: SEQUENCE SET; Schema: public; Owner: one
 --
 
-SELECT pg_catalog.setval('lists_id_seq', 1, true);
+SELECT pg_catalog.setval('lists_id_seq', 1, false);
 
 
 --
@@ -144,7 +144,7 @@ COPY todos (id, name, completed, list_id) FROM stdin;
 -- Name: todos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: one
 --
 
-SELECT pg_catalog.setval('todos_id_seq', 1, true);
+SELECT pg_catalog.setval('todos_id_seq', 1, false);
 
 
 --
@@ -176,7 +176,7 @@ ALTER TABLE ONLY todos
 --
 
 ALTER TABLE ONLY todos
-    ADD CONSTRAINT todos_list_id_fkey FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE;
+    ADD CONSTRAINT todos_list_id_fkey FOREIGN KEY (list_id) REFERENCES lists(id);
 
 
 --
