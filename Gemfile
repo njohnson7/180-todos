@@ -7,9 +7,6 @@ gem 'sinatra-contrib'
 gem 'erubis'
 gem 'pg'
 
-gem 'awesome_print'
-gem 'pry'
-
 group :production do
   gem 'puma'
 end
