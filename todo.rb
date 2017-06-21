@@ -1,6 +1,5 @@
 require 'sinatra'
 require 'sinatra/content_for'
-require 'sinatra/reloader' if development?
 require 'tilt/erubis'
 
 require_relative 'database_persistence'
@@ -9,6 +8,11 @@ configure do
   enable :sessions
   set :session_secret, 'secret'
   set :erb, escape_html: true
+end
+
+configure(:development) do
+  require 'sinatra/reloader'
+  also_reload 'database_persistence.rb'
 end
 
 helpers do
@@ -45,17 +49,16 @@ helpers do
   end
 end
 
-def load_id_and_list
+def load_list_id_and_list
   list_id = params[:list_id]
-  unless list_id =~ /\A\d+\z/ && @storage.list_exists?(list_id.to_i)
+  list = @storage.find_list(list_id.to_i)
+  unless list_id =~ /\A\d+\z/ && list
     ### @storage.error = 'The specified list was not found.'
     session[:error] = 'The specified list was not found.'
     redirect '/lists'
   end
-  list_id = list_id.to_i
-  list = @storage.find_list(list_id)
 
-  [list_id, list]
+  [list_id.to_i, list]
 end
 
 # Return an error message if list name is invalid. Return nil if name is valid.
@@ -114,28 +117,28 @@ end
 
 # View a single todo list
 get '/lists/:list_id' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
   erb :list, layout: :layout
 end
 
 # Edit an existing todo list
 get '/lists/:list_id/edit' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
   erb :edit_list, layout: :layout
 end
 
 # Update an existing todo list
 post '/lists/:list_id' do
-  list_name = params[:list_name].strip
-  @list_id, @list = load_id_and_list
+  new_list_name = params[:list_name].strip
+  @list_id, @list = load_list_id_and_list
 
-  error = error_for_list_name(list_name)
+  error = error_for_list_name(new_list_name)
   if error
     ### @storage.error = error
     session[:error] = error
     erb :edit_list, layout: :layout
   else
-    @storage.update_list_name(@list, list_name)
+    @storage.update_list_name(@list_id, new_list_name)
     ### @storage.success = 'The list has been updated.'
     session[:success] = 'The list has been updated.'
     redirect "/lists/#{@list_id}"
@@ -144,7 +147,7 @@ end
 
 # Delete a todo list
 post '/lists/:list_id/delete' do
-  @list_id = load_id_and_list.first
+  @list_id = load_list_id_and_list.first
 
   @storage.delete_list(@list_id)
   if env['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest'
@@ -158,7 +161,7 @@ end
 
 # Add a new todo to a list
 post '/lists/:list_id/todos' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
   todo_name = params[:todo].strip
 
   error = error_for_todo(todo_name)
@@ -167,7 +170,7 @@ post '/lists/:list_id/todos' do
     session[:error] = error
     erb :list, layout: :layout
   else
-    @storage.create_new_todo(@list, todo_name)
+    @storage.create_new_todo(@list_id, todo_name)
     ### @storage.success = 'The todo was added.'
     session[:success] = 'The todo was added.'
     redirect "/lists/#{@list_id}"
@@ -176,10 +179,10 @@ end
 
 # Delete a todo from a list
 post '/lists/:list_id/todos/:todo_id/delete' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
   todo_id = params[:todo_id].to_i
 
-  @storage.delete_todo(@list, todo_id)
+  @storage.delete_todo(@list_id, todo_id)
   if env['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest'
     status 204
   else
@@ -191,11 +194,11 @@ end
 
 # Update status of a todo
 post '/lists/:list_id/todos/:todo_id' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
   todo_id = params[:todo_id].to_i
   is_completed = params[:completed] == 'true'
 
-  @storage.update_todo_status(@list, todo_id, is_completed)
+  @storage.update_todo_status(todo_id, is_completed)
   ### @storage.success = 'The todo has been updated.'
   session[:success] = 'The todo has been updated.'
   redirect "/lists/#{@list_id}"
@@ -203,9 +206,9 @@ end
 
 # Mark all todos as complete for a list
 post '/lists/:list_id/complete_all' do
-  @list_id, @list = load_id_and_list
+  @list_id, @list = load_list_id_and_list
 
-  @storage.complete_all_todos(@list)
+  @storage.complete_all_todos(@list_id)
   ### @storage.success = 'All todos have been completed.'
   session[:success] = 'All todos have been completed.'
   redirect "/lists/#{@list_id}"
