@@ -17,19 +17,11 @@ end
 
 helpers do
   def list_complete?(list)
-    !list_empty?(list) && todos_remaining_count(list).zero?
+    !list_empty?(list) && list[:todos_remaining_count].zero?
   end
 
   def list_empty?(list)
-    todos_count(list).zero?
-  end
-
-  def todos_count(list)
-    list[:todos].size
-  end
-
-  def todos_remaining_count(list)
-    list[:todos].count { |todo| !todo[:completed] }
+    list[:todos_count].zero?
   end
 
   def list_class(list)
@@ -90,12 +82,12 @@ end
 # View list of lists
 get '/lists' do
   @lists = @storage.all_lists
-  erb :lists, layout: :layout
+  erb :lists
 end
 
 # Render the new list form
 get '/lists/new' do
-  erb :new_list, layout: :layout
+  erb :new_list
 end
 
 # Create a new list
@@ -106,7 +98,7 @@ post '/lists' do
   if error
     ### @storage.error = error
     session[:error] = error
-    erb :new_list, layout: :layout
+    erb :new_list
   else
     @storage.create_new_list(list_name)
     ### @storage.success = 'The list has been created.'
@@ -118,13 +110,14 @@ end
 # View a single todo list
 get '/lists/:list_id' do
   @list_id, @list = load_list_id_and_list
-  erb :list, layout: :layout
+  @todos = @storage.find_todos_for_list(@list_id)
+  erb :list
 end
 
 # Edit an existing todo list
 get '/lists/:list_id/edit' do
   @list_id, @list = load_list_id_and_list
-  erb :edit_list, layout: :layout
+  erb :edit_list
 end
 
 # Update an existing todo list
@@ -136,7 +129,7 @@ post '/lists/:list_id' do
   if error
     ### @storage.error = error
     session[:error] = error
-    erb :edit_list, layout: :layout
+    erb :edit_list
   else
     @storage.update_list_name(@list_id, new_list_name)
     ### @storage.success = 'The list has been updated.'
@@ -166,9 +159,10 @@ post '/lists/:list_id/todos' do
 
   error = error_for_todo(todo_name)
   if error
+    @todos = @storage.find_todos_for_list(@list_id)
     ### @storage.error = error
     session[:error] = error
-    erb :list, layout: :layout
+    erb :list
   else
     @storage.create_new_todo(@list_id, todo_name)
     ### @storage.success = 'The todo was added.'
